@@ -1,7 +1,0 @@
-{
-    "tool_and_invocation": {
-        "unique_apsw_word":["Apsw"],
-        "unique_bsw_word":["thirdPartyObj"],
-        "unique_integration_layer_word":["IntegrationLayer"]
-    }
-}
