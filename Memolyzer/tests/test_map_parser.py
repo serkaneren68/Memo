@@ -144,29 +144,49 @@ class TestMapParser(unittest.TestCase):
         #     i = i + 1
 
     def test_mode_5(self):
-
-        # link_result_df = self.map_parser.get_link_result_by_file_name("Adc.c")
-        link_result_df = self.map_parser.get_link_result_by_file_name("SWintegration_FD.c")
+ 
+        link_result_df = self.map_parser.get_link_result_by_file_name("Adc.c")
+        # link_result_df = self.map_parser.get_link_result_by_file_name("SWintegration_FD.c")
+        link_result_df = link_result_df.drop(columns=["[out] Section"])
         self.map_parser.init_tables(["locate_result_sections"])
+        sections_df = self.map_parser.tables["locate_result_sections"]
         locate_result_sections_df = self.map_parser.tables["locate_result_sections"]
         locate_result_sections_df = locate_result_sections_df.rename(columns={"Section": "[in] Section"})
         merged_link_res_and_sec = pd.merge(link_result_df, locate_result_sections_df, on='[in] Section', how='inner')
-
+ 
         self.map_parser.init_tables(["locate_result_combined_sections"])
         locate_result_combined_sections_df = self.map_parser.tables["locate_result_combined_sections"]
         locate_result_combined_sections_df = locate_result_combined_sections_df.drop(columns=['[in] Size (MAU)', '[out] Offset'])
         merged_link_res_and_combined_sec = pd.merge(link_result_df, locate_result_combined_sections_df, on='[in] Section', how='inner', suffixes=('_link_res', '_locate_res'))
+ 
+        merged_link_res_and_sec = merged_link_res_and_sec.drop(columns=["[in] Size (MAU)", "[out] Offset", "[out] Size (MAU)", "Group", "Space addr", "Alignment"])
 
-        merged_link_res_and_sec = merged_link_res_and_sec.drop(columns=[ "[in] Size (MAU)", "[out] Offset", "[out] Section", "[out] Size (MAU)", "Group", "Space addr", "Alignment"])
+        # chip_list = []
+        # chip_addr_list = []
+        # for section in merged_link_res_and_combined_sec['[out] Section']:
+        #     if section in sections_df['Section'].values:
+        #         chip = sections_df.loc[sections_df['Section'] == section, 'Chip'].values[0]
+        #         chip_addr = sections_df.loc[sections_df['Section'] == section, 'Chip addr'].values[0]
+        #     else:
+        #         chip = ''
+        #         chip_addr = ''
+        #     chip_list.append(chip)
+        #     chip_addr_list.append(chip_addr)
+        # merged_link_res_and_combined_sec['Chip'] = chip_list
+        # merged_link_res_and_combined_sec['Chip addr'] = chip_addr_list
 
-        grouped_df = merged_link_res_and_sec.groupby("Chip")
-        for key, item in grouped_df:
-            print(grouped_df.get_group(key))
-            print(grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum(), "\n\n")
-
+        merged_link_res_and_combined_sec['Chip'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: sections_df.loc[sections_df['Section'] == x, 'Chip'].values[0] if x in sections_df['Section'].values else '')
+        merged_link_res_and_combined_sec['Chip addr'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: sections_df.loc[sections_df['Section'] == x, 'Chip addr'].values[0] if x in sections_df['Section'].values else '')
+        
+        
+        # grouped_df = merged_link_res_and_sec.groupby("Chip")
+        # for key, item in grouped_df:
+        #     print(grouped_df.get_group(key))
+        #     print(grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum(), "\n\n")
+ 
         sum_value_link_res_sec  = merged_link_res_and_sec['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
         sum_value_link_comb_res_sec  = merged_link_res_and_combined_sec['[in] Size (MAU)'].apply(lambda x: int(x, 16)).sum()
-
+ 
         print("bir: ", sum_value_link_res_sec)
         print("iki: ", sum_value_link_comb_res_sec)
         show(merged_link_res_and_sec, merged_link_res_and_combined_sec)
