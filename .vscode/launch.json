@@ -1,0 +1,28 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Test Map Parser",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "Memolyzer\\tests\\test_map_parser.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "Memolyzer"
+            },
+        },
+        {
+            "name": "Test Table",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "Memolyzer\\tests\\test_table.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "Memolyzer"
+            },
+        }
+    ]
+}

@@ -22,11 +22,21 @@ class TestMapParser(unittest.TestCase):
     def test_get_tool_and_invocation(self):
         self.map_parser.init_tables(["tool_and_invocation"])
         result = self.map_parser.tables["tool_and_invocation"]
-        # arr = result["Invocation"][3].split(",") # split by comma
-        # arr = [i.strip() for i in arr]
-        # print(arr)
+        file_paths = result["Invocation"][3].split(",")
+        file_paths = [i.strip() for i in file_paths]
+ 
+        type_and_search_key = { 'Bsw': "thirdPartyObj", 'Integration': "IntegrationLayer", 'Apsw': "Apsw" }
+        type_and_file_df = pd.DataFrame(columns=['type', 'file_name'])
+        
+        for file_path in file_paths:
+            for keyword in type_and_search_key.keys():
+                if type_and_search_key[keyword] in file_path:
+                    file_name = file_path.split('/')[-1].strip('"')
+                    type_and_file_df = pd.concat([type_and_file_df, pd.DataFrame({'type': [keyword], 'file_name': [file_name]})], ignore_index=True)
+                    break
+ 
+        MapFileTable().save_df_as(type_and_file_df,"tool_and_invocation1","html")
         MapFileTable().save_df_as(result,"tool_and_invocation","html")
-        # show(result)
  
     def test_get_overall(self):
         self.map_parser.init_tables(["overall"])
@@ -115,8 +125,6 @@ class TestMapParser(unittest.TestCase):
         print("\n------------------")
         print(merged_link_result_and_sections.shape[0])
 
-        # TODO: bu yanlış düzelt
-
         # last_out_section = ""
         # for i, row in matched_combined_sections_df.iterrows():
         #     if last_out_section != row['[out] Section']:
@@ -137,7 +145,8 @@ class TestMapParser(unittest.TestCase):
 
     def test_mode_5(self):
 
-        link_result_df = self.map_parser.get_link_result_by_file_name("Adc.c")
+        # link_result_df = self.map_parser.get_link_result_by_file_name("Adc.c")
+        link_result_df = self.map_parser.get_link_result_by_file_name("SWintegration_FD.c")
         self.map_parser.init_tables(["locate_result_sections"])
         locate_result_sections_df = self.map_parser.tables["locate_result_sections"]
         locate_result_sections_df = locate_result_sections_df.rename(columns={"Section": "[in] Section"})
@@ -145,10 +154,23 @@ class TestMapParser(unittest.TestCase):
 
         self.map_parser.init_tables(["locate_result_combined_sections"])
         locate_result_combined_sections_df = self.map_parser.tables["locate_result_combined_sections"]
-        locate_result_combined_sections_df = locate_result_combined_sections_df.drop(columns=['[in] Size (MAU)', '[out] Offset', 'Size (MAU)'])
+        locate_result_combined_sections_df = locate_result_combined_sections_df.drop(columns=['[in] Size (MAU)', '[out] Offset'])
         merged_link_res_and_combined_sec = pd.merge(link_result_df, locate_result_combined_sections_df, on='[in] Section', how='inner', suffixes=('_link_res', '_locate_res'))
 
+        merged_link_res_and_sec = merged_link_res_and_sec.drop(columns=[ "[in] Size (MAU)", "[out] Offset", "[out] Section", "[out] Size (MAU)", "Group", "Space addr", "Alignment"])
+
+        grouped_df = merged_link_res_and_sec.groupby("Chip")
+        for key, item in grouped_df:
+            print(grouped_df.get_group(key))
+            print(grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum(), "\n\n")
+
+        sum_value_link_res_sec  = merged_link_res_and_sec['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+        sum_value_link_comb_res_sec  = merged_link_res_and_combined_sec['[in] Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+        print("bir: ", sum_value_link_res_sec)
+        print("iki: ", sum_value_link_comb_res_sec)
         show(merged_link_res_and_sec, merged_link_res_and_combined_sec)
+        
 
 if __name__ == '__main__':
     unittest.main()
