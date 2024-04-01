@@ -341,9 +341,9 @@ class MapParser:
 
     # path to 
     # This function is used to get the link result of a file
-    def get_link_result_by_file_name(self, file_name):
+    def get_link_result_by_file_name(self, file_name:str):
         self.init_tables(["link_result"])
-        file_name_with_suffix = file_name + ".obj"
+        file_name_with_suffix = file_name + ".obj" if not file_name.endswith(".o") else file_name
         link_result_table = self.tables["link_result"]
         link_result_table_df_by_file = link_result_table.query('`[in] File` == "{}"'.format(file_name_with_suffix))
 

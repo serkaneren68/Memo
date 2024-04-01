@@ -148,12 +148,15 @@ class TestMapParser(unittest.TestCase):
 
     def test_mode_5(self):
  
-        file_name = "Adc.c" # bos var
+        # file_name = "Adc.c" # bos var
         # file_name = "SWintegration_FD.c" #bos yok
         # file_name = "adc_analogInput.c" # bos yok
         # file_name = "adc_analogInput_data.c" # bos yok
         # file_name = "cap_canApi.c" # bos var
         # file_name = "cap_canApi_data.c" # bos var
+        # file_name = "ElapsedTime.o" # bos var
+        file_name = "SuspendOSInterrupts.o" # bos var
+        
 
         link_result_df = self.map_parser.get_link_result_by_file_name(file_name)
         link_result_df = link_result_df.drop(columns=["[out] Section"])
@@ -181,11 +184,11 @@ class TestMapParser(unittest.TestCase):
         self.map_parser.init_tables(["processed_files"])
         processed_files_df = self.map_parser.tables["processed_files"]
         merged_link_res_and_sec['File Type'] = merged_link_res_and_sec['[in] File'].apply(lambda x: file_type_df.loc[file_type_df['file_name'] == x, 'type'].values[0] if x in file_type_df['file_name'].values 
-                                                                                                            else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+' ,from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
+                                                                                                            else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+', from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
                                                                                                             else 'NotFounded')
 
         merged_link_res_and_combined_sec['File Type'] = merged_link_res_and_combined_sec['[in] File'].apply(lambda x: file_type_df.loc[file_type_df['file_name'] == x, 'type'].values[0] if x in file_type_df['file_name'].values 
-                                                                                                            else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+' ,from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
+                                                                                                            else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+', from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
                                                                                                             else 'NotFounded')
 
         # grouped_df = merged_link_res_and_sec.groupby("Chip")
