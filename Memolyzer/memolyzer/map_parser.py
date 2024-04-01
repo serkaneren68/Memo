@@ -28,6 +28,7 @@ MAP_FILE_PATH = os.path.normpath(os.path.join(Path(__file__).parent.absolute(),o
 temp_tables = {
     "tool_and_invocation": None,
     "overall": None,
+    "processed_files": None,
     "link_result": None,
     "cross_references": None,
     "locate_result_sections": None,
@@ -53,6 +54,7 @@ class MapParser:
         task_functions = {
             "tool_and_invocation": self.init_tool_and_invocation,
             "overall": self.init_overall,
+            "processed_files": self.init_processed_files,
             "link_result": self.init_link_result,
             "cross_references": self.init_cross_references,
             "locate_result_sections": self.init_locate_results_sections,
@@ -129,6 +131,14 @@ class MapParser:
         base_table['overall'] = percentage
         return base_table
  
+    def init_processed_files(self):
+        start_line = self.get_header_info("Processed Files")["start_line"]
+        end_line = self.get_header_info("Processed Files")["end_line"]
+        lines = self.map_file[start_line:end_line]
+        rows = MapFileTable().get_table_from_txt_tool_invocation(lines,r"[\*]+\s*Processed Files\s*[\*]+")
+        table = MapFileTable().convert_to_data_frame(rows)
+        return table
+    
     def init_link_result(self):
         start_line = self.get_header_info("Link Result")["start_line"]        
         end_line = self.get_header_info("Link Result")["end_line"]
@@ -188,6 +198,48 @@ class MapParser:
         rows = MapFileTable().get_table_from_txt_combined_sections(lines)
         table = MapFileTable().convert_to_data_frame(rows)
         return table
+
+    def get_file_type(self, type_and_search_key = { 'Bsw': "thirdPartyObj", 'Integration': "IntegrationLayer", 'Apsw': "Apsw" }):
+        self.init_tables(["tool_and_invocation"])
+        tool_invocation_df = self.tables["tool_and_invocation"]
+        file_paths = tool_invocation_df["Invocation"][3].split(",")
+        file_paths = [i.strip() for i in file_paths]
+ 
+        # type_and_search_key = { 'Bsw': "thirdPartyObj", 'Integration': "IntegrationLayer", 'Apsw': "Apsw" }
+        file_type_df = pd.DataFrame(columns=['type', 'file_name'])
+        
+        for file_path in file_paths:
+            for keyword in type_and_search_key.keys():
+                if type_and_search_key[keyword] in file_path:
+                    file_name = file_path.split('/')[-1].strip('"')
+                    file_type_df = pd.concat([file_type_df, pd.DataFrame({'type': [keyword], 'file_name': [file_name]})], ignore_index=True)
+                    break
+
+        MapFileTable().save_df_as(file_type_df,"tool_and_invocation1","html")
+        return file_type_df
+    
+    def get_not_found_symbol(self, file_name):
+
+        link_result_df = self.get_link_result_by_file_name(file_name)
+        matched_sections_df, matched_link_result_df, not_matched_link_result_df = self.match_link_result_and_sections(link_result_df)
+        matched_combined_sections_df, matched_last_link_result_df, not_matched_last_link_result_df = self.match_link_result_and_combined_sections(not_matched_link_result_df)
+
+        matched_sections_df = matched_sections_df.rename(columns={"Section": "[in] Section"})
+
+        print("\n------------------")
+        print("get_link_result_by_file_name shape:", link_result_df.shape)
+        print("\n------------------")
+        print(matched_sections_df.shape)
+        print(matched_link_result_df.shape)
+        print(not_matched_link_result_df.shape)
+        print("\n------------------")
+        print(matched_combined_sections_df.shape)
+        print(matched_last_link_result_df.shape)
+        print(not_matched_last_link_result_df.shape)
+
+        return not_matched_last_link_result_df 
+        # return not_matched_last_link_result_df if not_matched_last_link_result_df.shape[0] != 0 else None
+
 
     def get_symbol_info(self, symbol_name): # belirli bir sembolü bulur 
         

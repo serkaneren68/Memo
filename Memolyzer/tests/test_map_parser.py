@@ -20,30 +20,21 @@ class TestMapParser(unittest.TestCase):
     #     self.assertEqual(self.map_parser.headers[8]["title"], "Locate Rules")
  
     def test_get_tool_and_invocation(self):
-        self.map_parser.init_tables(["tool_and_invocation"])
-        result = self.map_parser.tables["tool_and_invocation"]
-        file_paths = result["Invocation"][3].split(",")
-        file_paths = [i.strip() for i in file_paths]
- 
-        type_and_search_key = { 'Bsw': "thirdPartyObj", 'Integration': "IntegrationLayer", 'Apsw': "Apsw" }
-        type_and_file_df = pd.DataFrame(columns=['type', 'file_name'])
-        
-        for file_path in file_paths:
-            for keyword in type_and_search_key.keys():
-                if type_and_search_key[keyword] in file_path:
-                    file_name = file_path.split('/')[-1].strip('"')
-                    type_and_file_df = pd.concat([type_and_file_df, pd.DataFrame({'type': [keyword], 'file_name': [file_name]})], ignore_index=True)
-                    break
- 
-        MapFileTable().save_df_as(type_and_file_df,"tool_and_invocation1","html")
-        MapFileTable().save_df_as(result,"tool_and_invocation","html")
+        df = self.map_parser.get_file_type()
+        print(df)
  
     def test_get_overall(self):
         self.map_parser.init_tables(["overall"])
         result = self.map_parser.tables["overall"]
         MapFileTable().save_df_as(result,"overall","html")
         # show(result)
-        
+
+    def test_processed_files(self):
+        self.map_parser.init_tables(["processed_files"])
+        result = self.map_parser.tables["processed_files"]
+        MapFileTable().save_df_as(result,"processed_files","html")
+        show(result)
+           
     def test_get_link_result(self):
         self.map_parser.init_tables(["link_result"])
         result = self.map_parser.tables["link_result"]
@@ -93,7 +84,13 @@ class TestMapParser(unittest.TestCase):
         show(result1,result2,result3)
 
     def test_mode(self):
-        link_result_df = self.map_parser.get_link_result_by_file_name("Adc.c")
+
+        link_result_df = self.map_parser.get_link_result_by_file_name("Adc.c") # bos
+        # link_result_df = self.map_parser.get_link_result_by_file_name("SWintegration_FD.c") # dolu
+        # link_result_df = self.map_parser.get_link_result_by_file_name("adc_analogInput.c") # dolu
+        # link_result_df = self.map_parser.get_link_result_by_file_name("adc_analogInput_data.c") # full 
+        # link_result_df = self.map_parser.get_link_result_by_file_name("cap_canApi.c") # bos
+        # link_result_df = self.map_parser.get_link_result_by_file_name("cap_canApi_data.c") # bos
         matched_sections_df, matched_link_result_df, not_matched_link_result_df = self.map_parser.match_link_result_and_sections(link_result_df)
         matched_combined_sections_df, matched_last_link_result_df, not_matched_last_link_result_df = self.map_parser.match_link_result_and_combined_sections(not_matched_link_result_df)
 
@@ -102,7 +99,6 @@ class TestMapParser(unittest.TestCase):
         matched_sections_df = matched_sections_df.drop(columns=['Chip addr', 'Alignment', 'Size (MAU)'])
         # matched_link_result_df = matched_link_result_df.rename(columns={"[in] Section": "Section"})
         merged_link_result_and_sections = pd.merge(matched_link_result_df, matched_sections_df, on='[in] Section')
-        show(merged_link_result_and_sections)
 
         # # Alttaki sıralarına göre eşlemiyor
         # new_df = matched_link_result_df
@@ -122,8 +118,10 @@ class TestMapParser(unittest.TestCase):
         print(matched_last_link_result_df.shape)
         print(not_matched_last_link_result_df.shape)
 
-        print("\n------------------")
-        print(merged_link_result_and_sections.shape[0])
+        show(not_matched_last_link_result_df) if not_matched_last_link_result_df.shape[0] != 0 else None
+
+        # print("\n------------------")
+        # print(merged_link_result_and_sections.shape[0])
 
         # last_out_section = ""
         # for i, row in matched_combined_sections_df.iterrows():
@@ -143,10 +141,21 @@ class TestMapParser(unittest.TestCase):
         #     print(row)
         #     i = i + 1
 
+    def test_the_test(self):
+        file_names = ["Adc.c", "SWintegration_FD.c", "adc_analogInput.c", "adc_analogInput_data.c", "cap_canApi.c", "cap_canApi_data.c"]
+        for i in file_names:
+            self.test_mode_5(i)
+
     def test_mode_5(self):
  
-        link_result_df = self.map_parser.get_link_result_by_file_name("Adc.c")
-        # link_result_df = self.map_parser.get_link_result_by_file_name("SWintegration_FD.c")
+        file_name = "Adc.c" # bos var
+        # file_name = "SWintegration_FD.c" #bos yok
+        # file_name = "adc_analogInput.c" # bos yok
+        # file_name = "adc_analogInput_data.c" # bos yok
+        # file_name = "cap_canApi.c" # bos var
+        # file_name = "cap_canApi_data.c" # bos var
+
+        link_result_df = self.map_parser.get_link_result_by_file_name(file_name)
         link_result_df = link_result_df.drop(columns=["[out] Section"])
         self.map_parser.init_tables(["locate_result_sections"])
         sections_df = self.map_parser.tables["locate_result_sections"]
@@ -161,24 +170,24 @@ class TestMapParser(unittest.TestCase):
  
         merged_link_res_and_sec = merged_link_res_and_sec.drop(columns=["[in] Size (MAU)", "[out] Offset", "[out] Size (MAU)", "Group", "Space addr", "Alignment"])
 
-        # chip_list = []
-        # chip_addr_list = []
-        # for section in merged_link_res_and_combined_sec['[out] Section']:
-        #     if section in sections_df['Section'].values:
-        #         chip = sections_df.loc[sections_df['Section'] == section, 'Chip'].values[0]
-        #         chip_addr = sections_df.loc[sections_df['Section'] == section, 'Chip addr'].values[0]
-        #     else:
-        #         chip = ''
-        #         chip_addr = ''
-        #     chip_list.append(chip)
-        #     chip_addr_list.append(chip_addr)
-        # merged_link_res_and_combined_sec['Chip'] = chip_list
-        # merged_link_res_and_combined_sec['Chip addr'] = chip_addr_list
-
         merged_link_res_and_combined_sec['Chip'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: sections_df.loc[sections_df['Section'] == x, 'Chip'].values[0] if x in sections_df['Section'].values else '')
         merged_link_res_and_combined_sec['Chip addr'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: sections_df.loc[sections_df['Section'] == x, 'Chip addr'].values[0] if x in sections_df['Section'].values else '')
         
+        file_type_df = self.map_parser.get_file_type()
+        # merged_link_res_and_sec['File Type'] = merged_link_res_and_sec['[in] File'].apply(lambda x: file_type_df.loc[file_type_df['file_name'] == x, 'type'].values[0] if x in file_type_df['file_name'].values else 'NotFound')
+        # merged_link_res_and_combined_sec['File Type'] = merged_link_res_and_combined_sec['[in] File'].apply(lambda x: file_type_df.loc[file_type_df['file_name'] == x, 'type'].values[0] if x in file_type_df['file_name'].values else 'NotFound')
         
+        # bunu ben nasıl yazdımmmmm
+        self.map_parser.init_tables(["processed_files"])
+        processed_files_df = self.map_parser.tables["processed_files"]
+        merged_link_res_and_sec['File Type'] = merged_link_res_and_sec['[in] File'].apply(lambda x: file_type_df.loc[file_type_df['file_name'] == x, 'type'].values[0] if x in file_type_df['file_name'].values 
+                                                                                                            else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+' ,from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
+                                                                                                            else 'NotFounded')
+
+        merged_link_res_and_combined_sec['File Type'] = merged_link_res_and_combined_sec['[in] File'].apply(lambda x: file_type_df.loc[file_type_df['file_name'] == x, 'type'].values[0] if x in file_type_df['file_name'].values 
+                                                                                                            else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+' ,from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
+                                                                                                            else 'NotFounded')
+
         # grouped_df = merged_link_res_and_sec.groupby("Chip")
         # for key, item in grouped_df:
         #     print(grouped_df.get_group(key))
@@ -186,11 +195,22 @@ class TestMapParser(unittest.TestCase):
  
         sum_value_link_res_sec  = merged_link_res_and_sec['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
         sum_value_link_comb_res_sec  = merged_link_res_and_combined_sec['[in] Size (MAU)'].apply(lambda x: int(x, 16)).sum()
- 
+
+        size_df = pd.DataFrame({'From': ['merged_link_res_and_sec', 'merged_link_res_and_combined_sec'],
+                           'Size': [sum_value_link_res_sec, sum_value_link_comb_res_sec]})
+        
+        not_found_pd_df = self.map_parser.get_not_found_symbol(file_name)
+
+        MapFileTable().save_df_as(merged_link_res_and_sec, file_name + "merged_link_res_and_sec", "html")
+        MapFileTable().save_df_as(merged_link_res_and_combined_sec, file_name + "merged_link_res_and_combined_sec", "html")
+        MapFileTable().save_df_as(size_df, file_name + "size_df", "html")
+        MapFileTable().save_df_as(not_found_pd_df, file_name + "not_founded_symbols", "html")
+        
         print("bir: ", sum_value_link_res_sec)
         print("iki: ", sum_value_link_comb_res_sec)
-        show(merged_link_res_and_sec, merged_link_res_and_combined_sec)
-        
+
+        show(merged_link_res_and_sec, merged_link_res_and_combined_sec, size_df, not_found_pd_df)
+
 
 if __name__ == '__main__':
     unittest.main()

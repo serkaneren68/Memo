@@ -199,6 +199,36 @@ class MapFileTable():
                         rows[-1] = self.type_fit(rows[-1])
         return rows
 
+    def get_table_from_txt_processed_files(self, lines, header_pattern_statement):
+        table_founded = False
+        rows = list()
+        header_pattern = re.compile(header_pattern_statement)
+        header_found = False
+        for j in range(len(lines)):
+            header_obj = re.search(header_pattern, lines[j])
+            if(header_obj):
+                header_found = True
+                continue
+
+            if header_found:
+                if not table_founded:
+                    table_border_obj = re.search(self.table_border_pattern, lines[j])
+                    if(table_border_obj):
+                        table_founded = True
+                        continue
+                if table_founded: # with +---+ pattern
+                    table_border_obj = re.search(self.table_border_pattern, lines[j])
+
+                    if(table_border_obj): # end of table
+                        table_founded = False
+                        break
+
+                    if lines[j].startswith("|") :
+                        row =[ i.rstrip().lstrip() for i in lines[j].split("|")[1:-1] ]  # ilk ve son boş sütunları atla
+                        if len(row)<=1: continue # tablo olması için en az 2 eleman olmalı
+                        rows.append(row)
+        return rows
+    
     def save_df_as(self, df, name, format):
         if format not in ["html","csv","xlsx","json"]:
             print("The format is not supported!")
