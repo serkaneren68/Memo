@@ -1,5 +1,8 @@
 import json
 
+# excel okumak için 
+from pandas import read_excel
+
 def read_config_json(filename):
     try:
         with open(filename, 'r') as f:
@@ -20,10 +23,14 @@ for bsw_word in config["tool_and_invocation"]["unique_apsw_word"]:
 
 for integration_layer_word in config["tool_and_invocation"]["unique_apsw_word"]:
     print(f"APSW word: {integration_layer_word}")
-  
+
 def get_tool_and_invocation_conf(filename) -> dict:
     config = read_config_json(filename=filename)
     print(config["tool_and_invocation"])
     return config["tool_and_invocation"]
 
 get_tool_and_invocation_conf("config.json")
+
+print(read_config_json("mode5_config.json"))
+deneme = read_excel('mode5_config.xlsx')
+print(deneme.to_json())

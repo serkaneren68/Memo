@@ -2,7 +2,6 @@
 import regex as re
 import os
 from pathlib import Path
-# from prettytable import PrettyTable 
 from memolyzer.table import MapFileTable 
 import pandas as pd
 
@@ -51,7 +50,7 @@ class MapParser:
         @paramaters:
         
         """
-        task_functions = {
+        init_functions = {
             "tool_and_invocation": self.init_tool_and_invocation,
             "overall": self.init_overall,
             "processed_files": self.init_processed_files,
@@ -64,13 +63,13 @@ class MapParser:
         }
         
         if keys == ["all"]:
-            for key in list(task_functions.keys()):
-                self.tables[key] = task_functions[key]()
+            for key in list(init_functions.keys()):
+                self.tables[key] = init_functions[key]()
             return
             
         for key in keys:
-            if key in list(task_functions.keys()):
-                self.tables[key] = task_functions[key]()
+            if key in list(init_functions.keys()):
+                self.tables[key] = init_functions[key]()
             else:
                 print(f"Invalid key '{key}'.")
  
@@ -224,7 +223,7 @@ class MapParser:
         matched_sections_df, matched_link_result_df, not_matched_link_result_df = self.match_link_result_and_sections(link_result_df)
         matched_combined_sections_df, matched_last_link_result_df, not_matched_last_link_result_df = self.match_link_result_and_combined_sections(not_matched_link_result_df)
 
-        matched_sections_df = matched_sections_df.rename(columns={"Section": "[in] Section"})
+        matched_sections_df = matched_sections_df.rename(columns={"Section": "[out] Section"})
 
         print("\n------------------")
         print("get_link_result_by_file_name shape:", link_result_df.shape)
@@ -326,17 +325,17 @@ class MapParser:
     def match_link_result_and_sections(self, link_result_df):
         self.init_tables(["locate_result_sections"])
         locate_result_sections = self.tables["locate_result_sections"]
-        matched_sections_df = locate_result_sections[locate_result_sections['Section'].isin(link_result_df['[in] Section'])]
-        matched_link_result_df = link_result_df[link_result_df['[in] Section'].isin(locate_result_sections['Section'])]
-        not_matched_link_result_df = link_result_df[~link_result_df['[in] Section'].isin(locate_result_sections['Section'])]
+        matched_sections_df = locate_result_sections[locate_result_sections['Section'].isin(link_result_df['[out] Section'])]
+        matched_link_result_df = link_result_df[link_result_df['[out] Section'].isin(locate_result_sections['Section'])]
+        not_matched_link_result_df = link_result_df[~link_result_df['[out] Section'].isin(locate_result_sections['Section'])]
         return matched_sections_df, matched_link_result_df, not_matched_link_result_df
     
     def match_link_result_and_combined_sections(self, link_result_df):
         self.init_tables(["locate_result_combined_sections"])
         locate_result_combined_sections = self.tables["locate_result_combined_sections"]
-        matched_combined_sections_df = locate_result_combined_sections[locate_result_combined_sections['[in] Section'].isin(link_result_df['[in] Section'])]
-        matched_link_result_df = link_result_df[link_result_df['[in] Section'].isin(locate_result_combined_sections['[in] Section'])]
-        not_matched_link_result_df = link_result_df[~link_result_df['[in] Section'].isin(locate_result_combined_sections['[in] Section'])]
+        matched_combined_sections_df = locate_result_combined_sections[locate_result_combined_sections['[in] Section'].isin(link_result_df['[out] Section'])]
+        matched_link_result_df = link_result_df[link_result_df['[out] Section'].isin(locate_result_combined_sections['[in] Section'])]
+        not_matched_link_result_df = link_result_df[~link_result_df['[out] Section'].isin(locate_result_combined_sections['[in] Section'])]
         return matched_combined_sections_df, matched_link_result_df, not_matched_link_result_df
 
     # path to 

@@ -73,7 +73,7 @@ class TestMapParser(unittest.TestCase):
         
     def test_get_symbol_info(self):
         result = self.map_parser.get_symbol_info("adc_rawData_I_A_TSIER") #adc_analogRead_Init
-        # show(result)
+        show(result)
     
     def test_get_link_result_by_file_name(self):
         result = self.map_parser.get_link_result_by_file_name("SWintegration_FD.c")
@@ -148,29 +148,37 @@ class TestMapParser(unittest.TestCase):
 
     def test_mode_5(self):
  
+        # file_name = "pwm_pwmInputOutput_data.c" 
         # file_name = "Adc.c" # bos var
-        # file_name = "SWintegration_FD.c" #bos yok
+        file_name = "SWintegration_FD.c" #bos yok
         # file_name = "adc_analogInput.c" # bos yok
         # file_name = "adc_analogInput_data.c" # bos yok
         # file_name = "cap_canApi.c" # bos var
         # file_name = "cap_canApi_data.c" # bos var
         # file_name = "ElapsedTime.o" # bos var
-        file_name = "SuspendOSInterrupts.o" # bos var
+        # file_name = "SuspendOSInterrupts.o" # bos var
         
 
         link_result_df = self.map_parser.get_link_result_by_file_name(file_name)
-        link_result_df = link_result_df.drop(columns=["[out] Section"])
+        
+        # link_result_df = link_result_df.drop(columns=["[out] Section"])
         self.map_parser.init_tables(["locate_result_sections"])
         sections_df = self.map_parser.tables["locate_result_sections"]
         locate_result_sections_df = self.map_parser.tables["locate_result_sections"]
-        locate_result_sections_df = locate_result_sections_df.rename(columns={"Section": "[in] Section"})
-        merged_link_res_and_sec = pd.merge(link_result_df, locate_result_sections_df, on='[in] Section', how='inner')
+        locate_result_sections_df = locate_result_sections_df.rename(columns={"Section": "[out] Section"})
+        merged_link_res_and_sec = pd.merge(link_result_df, locate_result_sections_df, on='[out] Section', how='inner')
  
         self.map_parser.init_tables(["locate_result_combined_sections"])
         locate_result_combined_sections_df = self.map_parser.tables["locate_result_combined_sections"]
         locate_result_combined_sections_df = locate_result_combined_sections_df.drop(columns=['[in] Size (MAU)', '[out] Offset'])
-        merged_link_res_and_combined_sec = pd.merge(link_result_df, locate_result_combined_sections_df, on='[in] Section', how='inner', suffixes=('_link_res', '_locate_res'))
- 
+
+        # TODO: 
+        # TODO: burayı düzelt
+        link_result_df = link_result_df.rename(columns={"[out] Section": "Section"})
+        locate_result_combined_sections_df = locate_result_combined_sections_df.rename(columns={"[in] Section": "Section"})
+        merged_link_res_and_combined_sec = pd.merge(link_result_df, locate_result_combined_sections_df, on='Section', how='inner', suffixes=('_link_res', '_locate_res'))
+        #######################
+
         merged_link_res_and_sec = merged_link_res_and_sec.drop(columns=["[in] Size (MAU)", "[out] Offset", "[out] Size (MAU)", "Group", "Space addr", "Alignment"])
 
         merged_link_res_and_combined_sec['Chip'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: sections_df.loc[sections_df['Section'] == x, 'Chip'].values[0] if x in sections_df['Section'].values else '')
@@ -191,10 +199,10 @@ class TestMapParser(unittest.TestCase):
                                                                                                             else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+', from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
                                                                                                             else 'NotFounded')
 
-        # grouped_df = merged_link_res_and_sec.groupby("Chip")
-        # for key, item in grouped_df:
-        #     print(grouped_df.get_group(key))
-        #     print(grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum(), "\n\n")
+        grouped_df = merged_link_res_and_sec.groupby("Chip")
+        for key, item in grouped_df:
+            print(grouped_df.get_group(key))
+            print(grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum(), "\n\n")
  
         sum_value_link_res_sec  = merged_link_res_and_sec['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
         sum_value_link_comb_res_sec  = merged_link_res_and_combined_sec['[in] Size (MAU)'].apply(lambda x: int(x, 16)).sum()
@@ -202,12 +210,14 @@ class TestMapParser(unittest.TestCase):
         size_df = pd.DataFrame({'From': ['merged_link_res_and_sec', 'merged_link_res_and_combined_sec'],
                            'Size': [sum_value_link_res_sec, sum_value_link_comb_res_sec]})
         
+
+        # TODO: debug printi bulunamadığında print at
         not_found_pd_df = self.map_parser.get_not_found_symbol(file_name)
 
-        MapFileTable().save_df_as(merged_link_res_and_sec, file_name + "merged_link_res_and_sec", "html")
-        MapFileTable().save_df_as(merged_link_res_and_combined_sec, file_name + "merged_link_res_and_combined_sec", "html")
-        MapFileTable().save_df_as(size_df, file_name + "size_df", "html")
-        MapFileTable().save_df_as(not_found_pd_df, file_name + "not_founded_symbols", "html")
+        MapFileTable().save_df_as(merged_link_res_and_sec, file_name + "_merged_link_res_and_sec", "html")
+        MapFileTable().save_df_as(merged_link_res_and_combined_sec, file_name + "_merged_link_res_and_combined_sec", "html")
+        MapFileTable().save_df_as(size_df, file_name + "_size_df", "html")
+        MapFileTable().save_df_as(not_found_pd_df, file_name + "_not_founded_symbols", "html")
         
         print("bir: ", sum_value_link_res_sec)
         print("iki: ", sum_value_link_comb_res_sec)
