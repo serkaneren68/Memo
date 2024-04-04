@@ -122,13 +122,14 @@ class MapParser:
         end_line = self.get_header_info("Used Resources")["end_line"]
         lines = self.map_file[start_line:end_line]
         rows = MapFileTable().get_table_from_txt(lines,r"\* Memory usage in bytes")
-        base_table = MapFileTable().convert_to_data_frame(rows)
-        
+        table = MapFileTable().convert_to_data_frame(rows)
+
         #memory usage percentages
         percentage =  [(int(total,16)-int(free,16)) / int(total,16) * 100
-                       for free,total in zip(base_table['Free'],base_table['Total'])]         
-        base_table['overall'] = percentage
-        return base_table
+                       for free,total in zip(table['Free'],table['Total'])]         
+        table['Usage Rate (%)'] = percentage  
+
+        return table
  
     def init_processed_files(self):
         start_line = self.get_header_info("Processed Files")["start_line"]
@@ -143,18 +144,6 @@ class MapParser:
         end_line = self.get_header_info("Link Result")["end_line"]
         lines = self.map_file[start_line:end_line]
         rows = MapFileTable().get_table_from_txt(lines, r"[\*]+\s*Link Result\s*[\*]+" )
-        
-        # rows, sections = MapFileTable().get_table_from_txt(lines, r"[\*]+\s*Link Result\s*[\*]+", is_link_result=True)
-        
-        # print("Number of section_number: ", sections.count("section_number"))
-        # if sections.count("section_number") > 1: raise Exception("There are more than one section_number")
-        # if len(sections) != len(rows): raise Exception("Number of sections and rows are not equal. Can not merge.")
-        
-        # # merge rows and sections as a new column
-        # for i in range(len(rows)): rows[i].append(sections[i])
-        
-        # convert to pandas data frame
-        
         table = MapFileTable().convert_to_data_frame(rows)
         return table
  
@@ -223,8 +212,6 @@ class MapParser:
         matched_sections_df, matched_link_result_df, not_matched_link_result_df = self.match_link_result_and_sections(link_result_df)
         matched_combined_sections_df, matched_last_link_result_df, not_matched_last_link_result_df = self.match_link_result_and_combined_sections(not_matched_link_result_df)
 
-        matched_sections_df = matched_sections_df.rename(columns={"Section": "[out] Section"})
-
         print("\n------------------")
         print("get_link_result_by_file_name shape:", link_result_df.shape)
         print("\n------------------")
@@ -287,10 +274,6 @@ class MapParser:
 
         return info_df
 
-        # symbol_column = link_results_sub_df.apply(
-        #                     lambda x: self.get_symbol_name_from_section(x["[in] Section"]),axis=1)
-        # link_results_sub_df["Symbol"] = symbol_column
-        
     def get_file_info(self, file_name): # 2.
         """
         The `get_file_info` function retrieves information from tables based on a given file name and saves

@@ -23,6 +23,16 @@
             "env": {
                 "PYTHONPATH": "Memolyzer"
             },
+        },
+        {
+            "name": "Modes",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "Memolyzer\\memolyzer\\modes.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "Memolyzer"
+            },
         }
     ]
 }
