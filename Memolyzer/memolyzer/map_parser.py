@@ -25,15 +25,15 @@ MAP_FILE_NAME = "CEER_VCU_APP_V1_D_1.elf.map"
 MAP_FILE_PATH = os.path.normpath(os.path.join(Path(__file__).parent.absolute(),os.pardir,"example-data",MAP_FILE_NAME))
  
 temp_tables = {
-    "tool_and_invocation": None,
-    "overall": None,
-    "processed_files": None,
-    "link_result": None,
-    "cross_references": None,
-    "locate_result_sections": None,
-    "locate_result_symbols_name": None,
-    "locate_result_symbols_address": None,
-    "combined_sections": None,
+    "tool_and_invocation": pd.DataFrame(),
+    "overall": pd.DataFrame(),
+    "processed_files": pd.DataFrame(),
+    "link_result": pd.DataFrame(),
+    "cross_references": pd.DataFrame(),
+    "locate_result_sections": pd.DataFrame(),
+    "locate_result_symbols_name": pd.DataFrame(),
+    "locate_result_symbols_address": pd.DataFrame(),
+    "locate_result_combined_sections": pd.DataFrame(),
 }
  
 class MapParser:
@@ -69,7 +69,8 @@ class MapParser:
             
         for key in keys:
             if key in list(init_functions.keys()):
-                self.tables[key] = init_functions[key]()
+                if self.tables[key].empty:
+                    self.tables[key] = init_functions[key]()
             else:
                 print(f"Invalid key '{key}'.")
  
@@ -325,7 +326,7 @@ class MapParser:
     # This function is used to get the link result of a file
     def get_link_result_by_file_name(self, file_name:str):
         self.init_tables(["link_result"])
-        file_name_with_suffix = file_name + ".obj" if not file_name.endswith(".o") else file_name
+        file_name_with_suffix = file_name if file_name.endswith(".o") or file_name.endswith(".obj") else file_name  + ".obj"
         link_result_table = self.tables["link_result"]
         link_result_table_df_by_file = link_result_table.query('`[in] File` == "{}"'.format(file_name_with_suffix))
 
