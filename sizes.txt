@@ -1,0 +1,52 @@
+processed files -> link result -> locate result section
+
+dsram0:  202075 // data
+dsram1:  3119   // data
+dsram2:  2042   // data
+dsram3:  0
+dsram4:  0
+dsram5:  0
+pfls0:  84380 // bu nereden geldin bilmiyorum ama out section değil in section yaparsam 83072 geliyor. 1302 az
+pfls1:  710642 // code 
+pfls2:  460    // code
+pfls3:  460    // code 
+
+----------------------------
+
+// bence bu yöntem yemiyor
+link and combined section df
+in size mau
+
+dsram0:  0
+dsram1:  0
+dsram2:  0
+dsram3:  0
+dsram4:  0
+dsram5:  0
+pfls0:  710688
+pfls1:  0
+pfls2:  0
+pfls3:  159720 // 159723 REF_PPAGE (100264) offset + son elemanın size i 
+	       // ama REF_PPAGE in kendisi sections tablosunda 229376 lık yer tutuyor
+	       // bu yüzden bu yöntemle 
+	       // ASW_CALIB çok garip ekstradan ona bak
+
+----------------------------
+
+test_section_df
+size mau
+dsram0:  231771, 202075 + 29696 // data + reserved
+dsram1:  238639 // data + reserved
+dsram2:  8186 // data + reserved
+dsram3:  6144 // reserved
+dsram4:  1024 // reserved
+dsram5:  1024 // reserved
+pfls0:  1236262, 524 + 1235738 // code + data 
+			       // CODE (100265)  --> size i 1048576 bu datanın bir kısmını oluşturuyor muhtemelen
+			       // pfls0 da fazla gelmesinin nedeni muhtemelen iki kere tanımlanmış şunun gibi veriler 
+			       // [.data.BswM_Cfg_MRP.BswM_Cfg_CanSMIndicationModeInfo_ast] (100076)
+			       // önce data da tanımlı sonra pflsh0 da tanımlanmış
+pfls1:  710642 // code
+pfls2:  460 // code
+pfls3:  229836, 460 + 229376 // code + data
+			     // biri REF_PPAGE (100264) den geliyor 229376 lık yer, 460 zaten link result - section da bulundu.

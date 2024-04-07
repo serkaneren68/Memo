@@ -3,7 +3,7 @@ from memolyzer.map_parser import MapParser, MAP_FILE_PATH
 from memolyzer.table import MapFileTable
 from pandasgui import show
 import pandas as pd
- 
+
 class TestMapParser(unittest.TestCase):
     map_parser = MapParser(MAP_FILE_PATH)
  
@@ -261,44 +261,96 @@ class TestMapParser(unittest.TestCase):
 
         merged_link_res_and_combined_sec['Chip'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Chip'].values[0] if x in locate_result_sections_df['Section'].values else '')
 
-        dsram0_size_sec, dsram1_size_sec, dsram2_size_sec, dsram3_size_sec, dsram4_size_sec, dsram5_size_sec = 0, 0, 0, 0, 0, 0
-        pfls0_size_sec, pfls1_size_sec, pfls2_size_sec, pfls3_size_sec = 0, 0, 0, 0
+        dsram0_size, dsram1_size, dsram2_size, dsram3_size, dsram4_size, dsram5_size = 0, 0, 0, 0, 0, 0
+        pfls0_size, pfls1_size, pfls2_size, pfls3_size = 0, 0, 0, 0
 
-        # grouped_df = merged_link_res_and_combined_sec.groupby("Chip")
         grouped_df = merged_link_res_and_sec.groupby("Chip")
+        # grouped_df = merged_link_res_and_combined_sec.groupby("Chip")
+        search_key_sec = 'Size (MAU)'
+        search_key_comb_sec = '[in] Size (MAU)'
         for key, item in grouped_df:
 
             if key == 'mpe:dsram0':
-                dsram0_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                dsram0_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
 
             if key == 'mpe:dsram1':
-                dsram1_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                dsram1_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
 
             if key == 'mpe:dsram2':
-                dsram2_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                dsram2_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
 
             if key == 'mpe:dsram3':
-                dsram3_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                dsram3_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
 
             if key == 'mpe:dsram4':
-                dsram4_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                dsram4_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
 
             if key == 'mpe:dsram5':
-                dsram5_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                dsram5_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
                 
             if key == 'mpe:pfls0':
-                pfls0_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                pfls0_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
 
             if key == 'mpe:pfls1':
-                pfls1_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                pfls1_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
 
             if key == 'mpe:pfls2':
-                pfls2_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                pfls2_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
 
             if key == 'mpe:pfls3':
-                pfls3_size_sec += grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                pfls3_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
 
-        return dsram0_size_sec, dsram1_size_sec, dsram2_size_sec, dsram3_size_sec, dsram4_size_sec, dsram5_size_sec, pfls0_size_sec, pfls1_size_sec, pfls2_size_sec, pfls3_size_sec
+        return dsram0_size, dsram1_size, dsram2_size, dsram3_size, dsram4_size, dsram5_size, pfls0_size, pfls1_size, pfls2_size, pfls3_size
+    
+    def test_sections_df(self):
+        self.map_parser.init_tables(["locate_result_sections"])
+        sec_df = self.map_parser.tables["locate_result_sections"]
+        sec_grouped_df = sec_df.groupby("Chip")
+        dsram0_size, dsram1_size, dsram2_size, dsram3_size, dsram4_size, dsram5_size = 0, 0, 0, 0, 0, 0
+        pfls0_size, pfls1_size, pfls2_size, pfls3_size = 0, 0, 0, 0
+
+        for key, item in sec_grouped_df:
+
+            if key == 'mpe:dsram0':
+                dsram0_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram1':
+                dsram1_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram2':
+                dsram2_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram3':
+                dsram3_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram4':
+                dsram4_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram5':
+                dsram5_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+                
+            if key == 'mpe:pfls0':
+                pfls0_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:pfls1':
+                pfls1_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:pfls2':
+                pfls2_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:pfls3':
+                pfls3_size += sec_grouped_df.get_group(key)['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+
+        print("dsram0: ", dsram0_size)
+        print("dsram1: ", dsram1_size)
+        print("dsram2: ", dsram2_size)
+        print("dsram3: ", dsram3_size)
+        print("dsram4: ", dsram4_size)
+        print("dsram5: ", dsram5_size)
+        print("pfls0: ", pfls0_size)
+        print("pfls1: ", pfls1_size)
+        print("pfls2: ", pfls2_size)
+        print("pfls3: ", pfls3_size)
 
 if __name__ == '__main__':
     unittest.main()
