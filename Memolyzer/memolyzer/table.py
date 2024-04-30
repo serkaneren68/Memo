@@ -67,6 +67,51 @@ class MapFileTable():
                             rows.append(row)
                         rows[-1] = self.type_fit(rows[-1])
         return rows
+    
+    def get_table_from_txt_link_res(self, lines, header_pattern_statement):
+        table_founded = False
+        rows = list()
+        header_pattern = re.compile(header_pattern_statement)
+        header_found = False
+        for j in range(len(lines)):
+            header_obj = re.search(header_pattern, lines[j])
+            if(header_obj):
+                header_found = True
+                continue
+
+            if header_found:
+                if not table_founded:
+                    table_border_obj = re.search(self.table_border_pattern, lines[j])
+                    if(table_border_obj):
+                        table_founded = True
+                        continue
+                if table_founded: # with +---+ pattern
+                    table_border_obj = re.search(self.table_border_pattern, lines[j])
+
+                    if(table_border_obj): # end of table
+                        table_founded = False
+                        break
+
+                    if lines[j].startswith("|") :
+                        row =[ i.rstrip().lstrip() for i in lines[j].split("|")[1:-1] ]  # ilk ve son boş sütunları atla
+                        if len(row)<=1: continue # tablo olması için en az 2 eleman olmalı
+                        if row[0] == "": # satırın ilk elemanı boş ise 
+                            for column_num in range(len(rows[-1])):
+                                if row[column_num] != "":  # boş değilse
+                                    # eğer son eleman virgül ile bitiyorsa boşluk bırakarak ekle değilse normal ekle
+                                    # örnek olarak 73818. satır *_D.map
+                                    if row[column_num][-1] == ",":
+                                        rows[-1][column_num] = rows[-1][column_num] + " " + row[column_num]  
+                                    else: rows[-1][column_num] = rows[-1][column_num] + row[column_num]
+                        else:
+                            if row[4] == "": 
+                                row[4] = rows[-1][4]
+                                rows.append(row)
+                            else: 
+                                rows.append(row)
+                        rows[-1] = self.type_fit(rows[-1])
+        return rows
+
 
     # TODO: iki farklı type ı aynı rowda buldum bu çözülmeli .rodata.Dcm_Lcfg_Dsd.Dcm_Cfg_SrvTab0_Service0x11_SubSrv_acst 91428 hex ve section
     def type_finder(self, cell_value):

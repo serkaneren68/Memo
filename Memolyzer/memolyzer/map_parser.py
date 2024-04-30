@@ -143,7 +143,7 @@ class MapParser:
         start_line = self.get_header_info("Link Result")["start_line"]        
         end_line = self.get_header_info("Link Result")["end_line"]
         lines = self.map_file[start_line:end_line]
-        rows = MapFileTable().get_table_from_txt(lines, r"[\*]+\s*Link Result\s*[\*]+" )
+        rows = MapFileTable().get_table_from_txt_link_res(lines, r"[\*]+\s*Link Result\s*[\*]+" )
         table = MapFileTable().convert_to_data_frame(rows)
         return table
  

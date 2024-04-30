@@ -3,6 +3,8 @@ from memolyzer.map_parser import MapParser, MAP_FILE_PATH
 from memolyzer.table import MapFileTable
 from pandasgui import show
 import pandas as pd
+import logging as log
+log.basicConfig(level=log.WARN, format='%(asctime)s - Project Memory Analyzer: %(message)s')
 
 class TestMapParser(unittest.TestCase):
     map_parser = MapParser(MAP_FILE_PATH)
@@ -27,6 +29,7 @@ class TestMapParser(unittest.TestCase):
         self.map_parser.init_tables(["overall"])
         result = self.map_parser.tables["overall"]
         MapFileTable().save_df_as(result,"overall","html")
+        log.warn("unable to find")
         # show(result)
 
     def test_processed_files(self):
@@ -38,7 +41,7 @@ class TestMapParser(unittest.TestCase):
     def test_get_link_result(self):
         self.map_parser.init_tables(["link_result"])
         result = self.map_parser.tables["link_result"]
-        MapFileTable().save_df_as(result,"link_result","html")
+        MapFileTable().save_df_as(result,"link_result","xlsx")
         # show(result)
         
     def test_get_cross_referenfes(self):
@@ -62,7 +65,7 @@ class TestMapParser(unittest.TestCase):
     def test_get_symbols_by_adress(self):
         self.map_parser.init_tables(["locate_result_symbols_address"])
         result = self.map_parser.tables["locate_result_symbols_address"]
-        MapFileTable().save_df_as(result,"symbols_by_adress","json")
+        MapFileTable().save_df_as(result,"symbols_by_adress","html")
         # show(result)
 
     def test_get_combined_sections(self):
@@ -170,25 +173,28 @@ class TestMapParser(unittest.TestCase):
         print("pfls2: ", pfls2_sum)
         print("pfls3: ", pfls3_sum)
 
+    def calc_actual_size(self, size_mau, alignment):
+       return size_mau.apply(lambda x: int(x, 16)) + (size_mau.apply(lambda x: int(x, 16)) % alignment.apply(lambda x: int(x, 16)))
+
     def test_mode_5(self):
- 
+
         # file_name = "pwm_pwmInputOutput_data.c" 
-        file_name = "Adc.c" # bos var
+        # file_name = "Adc.c" # bos var combined var
         # file_name = "SWintegration_FD.c" #bos yok
         # file_name = "adc_analogInput.c" # bos yok
         # file_name = "adc_analogInput_data.c" # bos yok
         # file_name = "cap_canApi.c" # bos var
         # file_name = "cap_canApi_data.c" # bos var
-        # file_name = "ElapsedTime.o" # bos var
-        # file_name = "SuspendOSInterrupts.o" # bos var
-        
+        file_name = "ElapsedTime.o" # bos var combined var
+        # file_name = "SuspendOSInterrupts.o" # bos var combined var
+
 
         link_result_df = self.map_parser.get_link_result_by_file_name(file_name)
 
         link_result_df_for_sec = link_result_df[['[in] File', '[in] Section', '[out] Section']]
-        
+
         self.map_parser.init_tables(["locate_result_sections"])
-        locate_result_sections_df = self.map_parser.tables["locate_result_sections"][['Chip', 'Section', 'Size (MAU)', 'Chip addr']]
+        locate_result_sections_df = self.map_parser.tables["locate_result_sections"][['Chip', 'Section', 'Size (MAU)', 'Space addr', 'Alignment']]
 
         locate_result_sections_df_renamed = locate_result_sections_df.rename(columns={"Section" : "[out] Section"})
         merged_link_res_and_sec = pd.merge(link_result_df_for_sec, locate_result_sections_df_renamed, on='[out] Section', how='inner')
@@ -201,10 +207,10 @@ class TestMapParser(unittest.TestCase):
         merged_link_res_and_combined_sec = pd.merge(link_result_df_for_comb_sec, locate_result_combined_sections_df, on='[in] Section', how='inner')
 
         merged_link_res_and_combined_sec['Chip'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Chip'].values[0] if x in locate_result_sections_df['Section'].values else '')
-        merged_link_res_and_combined_sec['Chip addr'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Chip addr'].values[0] if x in locate_result_sections_df['Section'].values else '')
-        
-        merged_link_res_and_combined_sec['Sum of ChipAddr and Offset'] = merged_link_res_and_combined_sec.apply(lambda row: '0x' + hex(int(row['Chip addr'], 16) + int(row['[out] Offset'], 16))[2:].zfill(8), axis=1)
-        
+        merged_link_res_and_combined_sec['Group addr'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Space addr'].values[0] if x in locate_result_sections_df['Section'].values else '')
+
+        merged_link_res_and_combined_sec['Space addr'] = merged_link_res_and_combined_sec.apply(lambda row: '0x' + hex(int(row['Space addr'], 16) + int(row['[out] Offset'], 16))[2:].zfill(8), axis=1)
+
         file_type_df = self.map_parser.get_file_type()
 
         # bunu ben nasıl yazdımmmmm
@@ -215,30 +221,72 @@ class TestMapParser(unittest.TestCase):
                                                                                           else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+', from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
                                                                                           else 'NotFounded')
 
-        merged_link_res_and_combined_sec['File Type'] = merged_link_res_and_combined_sec['[in] File'].apply(lambda x: file_type_df.loc[file_type_df['file_name'] == x, 'type'].values[0] 
-                                                                                                            if x in file_type_df['file_name'].values 
-                                                                                                            else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+', from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
-                                                                                                            else 'NotFounded')
+        # merged_link_res_and_combined_sec['File Type'] = merged_link_res_and_combined_sec['[in] File'].apply(lambda x: file_type_df.loc[file_type_df['file_name'] == x, 'type'].values[0] 
+        #                                                                                                     if x in file_type_df['file_name'].values 
+        #                                                                                                     else file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'type'].values[0]+', from archive file: '+file_type_df.loc[file_type_df['file_name'] == processed_files_df.loc[processed_files_df['File'] == x, 'From archive'].values[0], 'file_name'].values[0] if x in processed_files_df['File'].values 
+        #                                                                                                     else 'NotFounded')
 
         sum_value_link_res_sec  = merged_link_res_and_sec['Size (MAU)'].apply(lambda x: int(x, 16)).sum()
-        sum_value_link_comb_res_sec  = merged_link_res_and_combined_sec['[in] Size (MAU)'].apply(lambda x: int(x, 16)).sum()
-
+        merged_link_res_and_sec["Chip Size"] = self.calc_actual_size(merged_link_res_and_sec['Size (MAU)'], merged_link_res_and_sec["Alignment"])
+        # sum_value_link_comb_res_sec  = merged_link_res_and_combined_sec['[in] Size (MAU)'].apply(lambda x: int(x, 16)).sum()
+        show(merged_link_res_and_sec)
         size_df = pd.DataFrame({'From': ['merged_link_res_and_sec', 'merged_link_res_and_combined_sec'],
-                           'Size': [sum_value_link_res_sec, sum_value_link_comb_res_sec]})
-        
+                           'Size': [sum_value_link_res_sec, 0]})
+
+        sum_actual = merged_link_res_and_sec["Chip Size"].sum()
+        print("sum_actual: ", sum_actual)
 
         # TODO: debug printi bulunamadığında print at
         not_found_pd_df = self.map_parser.get_not_found_symbol(file_name)
 
         MapFileTable().save_df_as(merged_link_res_and_sec, file_name + "_merged_link_res_and_sec", "html")
-        MapFileTable().save_df_as(merged_link_res_and_combined_sec, file_name + "_merged_link_res_and_combined_sec", "html")
+        # MapFileTable().save_df_as(merged_link_res_and_combined_sec, file_name + "_merged_link_res_and_combined_sec", "html")
         MapFileTable().save_df_as(size_df, file_name + "_size_df", "html")
         MapFileTable().save_df_as(not_found_pd_df, file_name + "_not_founded_symbols", "html")
         
         print("bir: ", sum_value_link_res_sec)
-        print("iki: ", sum_value_link_comb_res_sec)
+        # print("iki: ", sum_value_link_comb_res_sec)
+        
+        dsram0_size, dsram1_size, dsram2_size, dsram3_size, dsram4_size, dsram5_size = 0, 0, 0, 0, 0, 0
+        pfls0_size, pfls1_size, pfls2_size, pfls3_size = 0, 0, 0, 0
 
-        show(merged_link_res_and_sec, merged_link_res_and_combined_sec, size_df, not_found_pd_df)
+        grouped_df = merged_link_res_and_sec.groupby("Chip")
+        # grouped_df = merged_link_res_and_combined_sec.groupby("Chip")
+        search_key_sec = 'Size (MAU)'
+        for key, item in grouped_df:
+
+            if key == 'mpe:dsram0':
+                dsram0_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram1':
+                dsram1_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram2':
+                dsram2_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram3':
+                dsram3_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram4':
+                dsram4_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:dsram5':
+                dsram5_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+                
+            if key == 'mpe:pfls0':
+                pfls0_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:pfls1':
+                pfls1_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:pfls2':
+                pfls2_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+
+            if key == 'mpe:pfls3':
+                pfls3_size += grouped_df.get_group(key)[search_key_sec].apply(lambda x: int(x, 16)).sum()
+        print("dsram1:", dsram1_size)
+        print("plfs0:", pfls0_size)
+        show(merged_link_res_and_sec, size_df, not_found_pd_df)
 
     def test_mode_6(self, file_name):
 
@@ -351,6 +399,11 @@ class TestMapParser(unittest.TestCase):
         print("pfls1: ", pfls1_size)
         print("pfls2: ", pfls2_size)
         print("pfls3: ", pfls3_size)
+
+    def test_for_meeting(self):
+        self.map_parser.init_tables(["all"])
+        print("aa")
+        print("bb")
 
 if __name__ == '__main__':
     unittest.main()

@@ -1,4 +1,4 @@
-processed files -> link result -> locate result section
+processed files -> link result -> section
 
 dsram0:  202075 // data
 dsram1:  3119   // data
@@ -13,7 +13,6 @@ pfls3:  460    // code
 
 ----------------------------
 
-// bence bu yöntem yemiyor
 link and combined section df
 in size mau
 

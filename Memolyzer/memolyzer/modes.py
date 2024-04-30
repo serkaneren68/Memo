@@ -1,9 +1,49 @@
 from memolyzer.map_parser import MapParser, MAP_FILE_PATH
 from memolyzer.table import MapFileTable
-# from memolyzer.cli import Cli
 from pandasgui import show
 import pandas as pd
- 
+from datetime import datetime
+import warnings
+warnings.filterwarnings("ignore")
+
+
+class ColorStruct:
+    PURPLE = '\033[95m'
+    BLUE = '\033[94m'
+    CYAN = '\033[96m'
+    GREEN = '\033[92m'
+    WARNING = '\033[93m'
+    ERROR = '\033[91m'
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+def print_message(message_type:str, text:str, limit_lines:bool=False):
+
+    current_time = datetime.now().strftime("%m/%d/%Y, %H:%M:%S")
+    # color_map = {
+    #     "warning": ColorStruct.WARNING + f"{current_time} : "+ "WARNING !\n",
+    #     "error": ColorStruct.ERROR + f"{current_time} : "+ "ERROR !!!\n",
+    #     "ok": ColorStruct.GREEN + f"{current_time} : "+ "SUCCEEDED\n",
+    # }
+    color_map = {
+        "warning": ColorStruct.WARNING + "WARNING !:\t",
+        "error": ColorStruct.ERROR + "ERROR !!!:\t",
+        "ok": ColorStruct.GREEN + "SUCCEEDED.\t",
+    }
+
+    if not limit_lines:
+        print(f"{color_map[message_type.lower()]}{text}{ColorStruct.RESET}")
+    else:
+        # 20 ye kadar kısalt,
+        if len(text.split("\n")) > 20:
+            truncated_text = "\n".join(text.split("\n")[:20])
+            print(f"{color_map[message_type.lower()]}{truncated_text}\n...{ColorStruct.RESET}")
+        else:
+            print(f"{color_map[message_type.lower()]}{text}{ColorStruct.RESET}")
+
+
+
 temp_modes = {"symbol_info":None,
               "file_info": None,
               "overall": None,
@@ -13,24 +53,26 @@ temp_modes = {"symbol_info":None,
               }
  
 class Modes():
+    # def __init__(self, args) -> None:
+    #     self.args = args
+    #     self.map_parser = MapParser(self.args.map_path)
     def __init__(self) -> None:
-        # self.args = Cli().get_args()
         self.map_parser = MapParser(MAP_FILE_PATH)
         self.modes = temp_modes
         
     def run_modes(self):
  
-        mode_functions = {"symbol_info":self.map_parser.get_symbol_info, # tamamlandı
-                          "overall": self.map_parser.init_overall, # percentage yazdırılacak
+        mode_functions = {"symbol_info":self.get_symbol_info, # tamamlandı
+                          "overall": self.get_overall, # percentage yazdırılacak
                           "specific_mem_usage": self.get_specific_mem_usage, # tek bir satırı döndürecek mesela dsrame göre
  
                           # test_mode_5 kullan
                           # excelin her satırı için passed yada failed
                           # eğer ki satır failse (expected içerisinde olmayan sembol, memory e.g. dsram1, ama bu expected da yok şeklinde string döndürecek)
-                          "mem_section_with_check": None,  # excel den birden fazla alacak
+                          "mem_section_with_check": self.get_mem_section_check,  # excel den birden fazla alacak
  
                           # test_mode_5 kullan
-                          "file_info": self.map_parser.get_file_info, # section, Referenced in çıkar, symbol gelicek size tablosu
+                          "file_info": self.get_file_info, # section, Referenced in çıkar, symbol gelicek size tablosu
                           # sorted on symbols de ara symbolu bul, size ve address yazdır
  
                           "get_table_from_map_file": self.get_table_from_map_file
@@ -46,14 +88,108 @@ class Modes():
                 self.modes[key] = mode_functions[key]()
             else:
                 print(f"Invalid key '{key}'.")
- 
+
+    def get_mem_section_check(self):
+        excel_df = pd.read_excel("mode5_config.xlsx") # has Type	File Name	Expected Memory (Chip) columns expected memory can be multiple like mpe:dsram1, mpe:dsram2
+        # read file names from excel and use get_file_info for each file
+        for file_name in excel_df["File Name"]:
+            file_info_df = self.get_file_info(file_name)
+            file_info_df = file_info_df.dropna()
+            grouped_file_info_df = file_info_df.groupby("Chip")
+
+            expected_memory = excel_df[excel_df["File Name"] == file_name]["Expected Memory"].values[0].split(",")
+            expected_memory = [mem.strip() for mem in expected_memory]
+            for chip in grouped_file_info_df.groups.keys():
+                if chip in expected_memory:
+                    print_message("ok", f"In {file_name} file, {chip} is in the expected memory list")
+                else:
+                    print_message("warning", f"In {file_name} file, {chip} is not in the expected memory list. Expected memory list: {expected_memory}")
+                    # print_message("warning", f"Memory list in the file: {grouped_file_info_df.get_group(chip)['Chip'].unique().tolist()}")
+
+
+    def get_file_info(self, file_name:str):
+        link_result_df = self.map_parser.get_link_result_by_file_name(file_name)
+        if link_result_df.empty:
+            print_message("error","Give a valid file_name")
+            raise ValueError
+        link_result_df_for_sec = link_result_df[['[in] Section', '[out] Section']]
+        link_result_df_for_sec["in_out_is_equal"] = link_result_df_for_sec['[in] Section'] == link_result_df_for_sec['[out] Section']
+        not_equals_table = link_result_df_for_sec[~link_result_df_for_sec["in_out_is_equal"]]
+
+        self.map_parser.init_tables(["locate_result_sections", "locate_result_combined_sections", "locate_result_symbols_address"])
+        locate_result_sections_df = self.map_parser.tables["locate_result_sections"][['Chip', 'Section', 'Size (MAU)', 'Space addr']]
+        locate_result_sections_df_renamed = locate_result_sections_df.rename(columns={"Section" : "[out] Section"})
+        locate_result_combined_sections_df = self.map_parser.tables["locate_result_combined_sections"]
+        symbols_df = self.map_parser.tables["locate_result_symbols_address"][["Name", "Space addr"]]
+
+        if not not_equals_table.empty:
+            link_result_df_for_sec = link_result_df_for_sec.drop(not_equals_table.index)
+            print_message("warning", f"In {file_name} file, there is conflicts in this sections:\n" + not_equals_table.to_string(), True)
+            not_equal_link_res_sec = pd.merge(not_equals_table, locate_result_sections_df_renamed, on='[out] Section', how='left')
+            search_on_combined_for_not_equal = not_equal_link_res_sec[not_equal_link_res_sec["Chip"].isna()]
+            if not search_on_combined_for_not_equal.empty:
+                search_on_combined_for_not_equal = search_on_combined_for_not_equal[["[in] Section","in_out_is_equal"]]
+                not_equal_link_res_and_combined_sec = pd.merge(search_on_combined_for_not_equal, locate_result_combined_sections_df, on='[in] Section', how='left')
+                not_equal_link_res_and_combined_sec['Chip'] = not_equal_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Chip'].values[0] if x in locate_result_sections_df['Section'].values else '')
+                not_equal_link_res_and_combined_sec['Group addr'] = not_equal_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Space addr'].values[0] if x in locate_result_sections_df['Section'].values else '')
+                not_equal_link_res_and_combined_sec['Space addr'] = not_equal_link_res_and_combined_sec.apply(lambda row: '0x' + hex(int(row['Group addr'], 16) + int(row['[out] Offset'], 16))[2:].zfill(8), axis=1)
+                not_equal_merged = pd.concat([not_equal_link_res_sec, not_equal_link_res_and_combined_sec], axis=0)
+            else:
+                not_equal_merged = not_equal_link_res_sec
+            print_message("warning", "Could be 2 or more symbol in the same space adrress:\n" + str(not_equal_merged["Space addr"].unique().tolist()))
+
+
+        ############ Locate Result Sections Part  ############################
+        merged_link_res_and_sec = pd.merge(link_result_df_for_sec, locate_result_sections_df_renamed, on='[out] Section', how='left')
+
+        # check if could not found on Chip
+        search_on_combined = merged_link_res_and_sec[merged_link_res_and_sec["Chip"].isna()]
+        merged_link_res_and_sec = merged_link_res_and_sec.drop(search_on_combined.index)
+
+        merged_link_res_and_sec = pd.merge(merged_link_res_and_sec, symbols_df, on='Space addr', how='left')
+        merged_link_res_and_sec["Name"] = merged_link_res_and_sec["Name"].fillna("Not Found from Sections Table")
+
+
+        ############ Locate Result Combined Sections Part  ############################
+        if not search_on_combined.empty:
+            search_on_combined = search_on_combined[["[in] Section","in_out_is_equal"]]
+
+            merged_link_res_and_combined_sec = pd.merge(search_on_combined, locate_result_combined_sections_df, on='[in] Section', how='left')
+            merged_link_res_and_combined_sec['Chip'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Chip'].values[0] if x in locate_result_sections_df['Section'].values else '')
+            merged_link_res_and_combined_sec['Group addr'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Space addr'].values[0] if x in locate_result_sections_df['Section'].values else '')
+            merged_link_res_and_combined_sec['Space addr'] = merged_link_res_and_combined_sec.apply(lambda row: '0x' + hex(int(row['Group addr'], 16) + int(row['[out] Offset'], 16))[2:].zfill(8), axis=1)
+            
+            merged_link_res_and_combined_sec = pd.merge(merged_link_res_and_combined_sec, symbols_df, on='Space addr', how='left')
+            merged_link_res_and_combined_sec["Name"] = merged_link_res_and_combined_sec["Name"].fillna("Not Found from Combined Sections Table")
+            merged_link_res_and_combined_sec = merged_link_res_and_combined_sec.rename(columns={"[in] Size (MAU)" : "Size (MAU)"})
+
+        if not not_equals_table.empty:
+            # not_equal_merged['Name'] = 'Not Searched (In Out Section Different)'
+            if not search_on_combined.empty:
+                all_merged = pd.concat([merged_link_res_and_sec, merged_link_res_and_combined_sec, not_equal_merged], axis=0)
+            else:
+                all_merged = pd.concat([merged_link_res_and_sec, not_equal_merged], axis=0)
+        else:
+            if not search_on_combined.empty:
+                all_merged = pd.concat([merged_link_res_and_sec, merged_link_res_and_combined_sec], axis=0)
+            else:
+                all_merged = merged_link_res_and_sec
+        # all_merged = all_merged.dropna() 
+        all_merged = all_merged.rename(columns={"Name" : "Symbol Name"})
+        # reorder
+        cols = ['Chip', 'Space addr', 'Size (MAU)', 'Symbol Name', 'in_out_is_equal', '[in] Section', '[out] Section']
+        all_merged = all_merged[cols]
+        MapFileTable().save_df_as(all_merged, name='file_info_'+ file_name, format='html')
+
+        # show(all_merged)
+        return all_merged
  
     def get_overall(self):
-        self.map_parser.init_overall()
-        table = self.map_parser.tables["overall"]
+        self.map_parser.init_tables(["overall"])
+        overall_df = self.map_parser.tables["overall"]
         
-        self.show_table_gui_and_save(table, "overall")
-        return table
+        self.show_table_gui_and_save(overall_df, "overall")
+        return overall_df
     
     
     def get_specific_mem_usage(self):
@@ -103,7 +239,7 @@ class Modes():
         #symbols = symbols_table['Name']
         filtered_df = symbols_table.query('Name == "{}"'.format(symbol_name))
         if filtered_df.empty:
-            print("The symbol could not found in Symbols table")     
+            print_message("warning", "The symbol could not found in Symbols table")     
             return
  
         self.map_parser.init_tables(["locate_result_sections", "cross_references"])
@@ -113,7 +249,7 @@ class Modes():
         locate_res_sections_table = self.map_parser.tables["locate_result_sections"]
         filtered_locate_res_sections_df = locate_res_sections_table.query('`Space addr` == {}'.format(adress.values))
         if filtered_locate_res_sections_df.empty:
-            print("The symbol could not found in locate_res table")
+            print_message("warning","The symbol could not found in locate_res table")
         
         chip = filtered_locate_res_sections_df["Chip"].values[0]
         size = filtered_locate_res_sections_df["Size (MAU)"].values[0]
@@ -175,7 +311,7 @@ class Modes():
                 else:
                     print("Invalid type")
                     return gui_df["table_df"]
-            elif save_input.lower == "no":
+            elif save_input.lower() == "no":
                 print("Table is not saved.")
                 return table_df
             else:
@@ -184,7 +320,7 @@ class Modes():
                
         elif gui_input.lower() == "no":    
             save_input2 = input("Do you want to save the table? (yes/no): ")
-            if save_input2.lower == "yes":
+            if save_input2.lower() == "yes":
                 format_input = input("Enter the type of file you want to save (csv, xlsx, json, html): ")
                 if format_input in ["csv", "xlsx", "json", "html"]:
                     MapFileTable().save_df_as(table_df, name=table_name, format=format_input)
@@ -192,7 +328,7 @@ class Modes():
                 else:
                     print("Invalid type")
                     return table_df
-            elif save_input2.lower == "no":
+            elif save_input2.lower() == "no":
                 print("Table is not saved.")
                 return table_df
             else:
@@ -204,4 +340,9 @@ class Modes():
  
 if __name__ == "__main__":
     obj = Modes()
-    obj.get_specific_mem_usage()
+    # obj.get_overall()
+    # obj.get_file_info()
+    
+    # obj.get_overall()
+
+    obj.get_mem_section_check()
