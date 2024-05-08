@@ -182,7 +182,7 @@ class Modes():
         merged_link_res_and_sec = merged_link_res_and_sec.drop(search_on_combined.index)
 
         merged_link_res_and_sec = pd.merge(merged_link_res_and_sec, symbols_df, on='Space addr', how='left')
-        merged_link_res_and_sec["Name"] = merged_link_res_and_sec["Name"].fillna("Not Found from Sections Table")
+        merged_link_res_and_sec["Name"] = merged_link_res_and_sec["Name"].fillna("Not Found in Sections Table")
 
 
         ############ Locate Result Combined Sections Part  ############################
@@ -195,7 +195,7 @@ class Modes():
             merged_link_res_and_combined_sec['Space addr'] = merged_link_res_and_combined_sec.apply(lambda row: '0x' + hex(int(row['Group addr'], 16) + int(row['[out] Offset'], 16))[2:].zfill(8) if not pd.isna(row['Group addr']) else np.NaN, axis=1)
 
             merged_link_res_and_combined_sec = pd.merge(merged_link_res_and_combined_sec, symbols_df, on='Space addr', how='left')
-            merged_link_res_and_combined_sec["Name"] = merged_link_res_and_combined_sec["Name"].fillna("Not Found from Combined Sections Table")
+            merged_link_res_and_combined_sec["Name"] = merged_link_res_and_combined_sec["Name"].fillna("Not Found in Combined Sections Table")
             merged_link_res_and_combined_sec = merged_link_res_and_combined_sec.rename(columns={"[in] Size (MAU)" : "Size (MAU)"})
 
         if not not_equals_table.empty:
@@ -216,7 +216,7 @@ class Modes():
         all_merged = all_merged[cols]
         all_merged = all_merged.reset_index(drop=True)
         MapFileTable().save_df_as(all_merged, name='file_info_'+ file_name, format='html')
-
+        if all_merged["Chip"].isna().all(): raise ValueError("Kodda bir hata var")
         # show(all_merged)
         return all_merged
  
