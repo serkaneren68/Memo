@@ -6,7 +6,7 @@ dsram2:  2042   // data
 dsram3:  0
 dsram4:  0
 dsram5:  0
-pfls0:  84380 // bu nereden geldin bilmiyorum ama out section değil in section yaparsam 83072 geliyor. 1302 az
+pfls0:  84380 // bu nereden geldin bilmiyorum ama out section değil in section yaparsam 83072 geliyor. 1308 az
 pfls1:  710642 // code 
 pfls2:  460    // code
 pfls3:  460    // code 

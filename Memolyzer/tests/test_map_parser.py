@@ -42,6 +42,7 @@ class TestMapParser(unittest.TestCase):
         self.map_parser.init_tables(["link_result"])
         result = self.map_parser.tables["link_result"]
         MapFileTable().save_df_as(result,"link_result","xlsx")
+        MapFileTable().save_df_as(result,"link_result","html")
         # show(result)
         
     def test_get_cross_referenfes(self):

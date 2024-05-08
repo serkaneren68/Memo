@@ -3,6 +3,7 @@ from memolyzer.table import MapFileTable
 from pandasgui import show
 import pandas as pd
 from datetime import datetime
+import numpy as np
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -62,6 +63,11 @@ class Modes():
         
     def run_modes(self):
  
+        # yeni mode olacak tool and invocation tablosundan bsw, apsw ve integration olup olmadığı alınacak.
+        # (test_map_parser.py daki test_get_tool_and_invocation kullanılabilir.) 
+        # ardından processed filesdan bunlar check edilecek eğer arşiv dosyası ise içindeki dosyalar da tek tek bakılacak
+        # ardından dosyalar ve her dosya için chipler ve size lar grouplanıp 
+        # tek bir df şeklinde chip leri ve size larına göre ne kadar kullanılıp kullanılmadığı bulunacak.
         mode_functions = {"symbol_info":self.get_symbol_info, # tamamlandı
                           "overall": self.get_overall, # percentage yazdırılacak
                           "specific_mem_usage": self.get_specific_mem_usage, # tek bir satırı döndürecek mesela dsrame göre
@@ -75,7 +81,8 @@ class Modes():
                           "file_info": self.get_file_info, # section, Referenced in çıkar, symbol gelicek size tablosu
                           # sorted on symbols de ara symbolu bul, size ve address yazdır
  
-                          "get_table_from_map_file": self.get_table_from_map_file
+                          "get_table_from_map_file": self.get_table_from_map_file,
+                          "get_layers_mem_usage": self.get_layers_mem_usage,
                           }
         
         if self.args.modes == ["all"]:
@@ -88,6 +95,31 @@ class Modes():
                 self.modes[key] = mode_functions[key]()
             else:
                 print(f"Invalid key '{key}'.")
+
+    def get_layers_mem_usage(self):
+        file_type_df = self.map_parser.get_file_type(type_and_search_key = { 'Bsw': "thirdPartyObj", 'Integration': "IntegrationLayer", 'Apsw': "Apsw" })
+        self.map_parser.init_tables(["processed_files"])
+        processed_files_df = self.map_parser.tables["processed_files"][["File", "From archive"]]
+        arch_files = file_type_df[file_type_df["File"].str.endswith(".a")]
+
+        merged_df = pd.merge(processed_files_df, file_type_df, on='File', how='left')
+        merged_df["Type"] = merged_df["Type"].fillna("Unknown Archive")
+        merged_df["Type"] = merged_df.apply(lambda x: arch_files[arch_files["File"] == x["From archive"]]["Type"].values[0]
+                                            if x["From archive"] in arch_files["File"].values
+                                            else x["Type"], axis=1)
+
+        layers_df = pd.DataFrame(columns=["Type", "Chip", "Size"])
+        # get file info for each file
+        for file_name in merged_df["File"]:
+            file_info_df = self.get_file_info(file_name)
+            grouped_file_info_df = file_info_df.groupby("Chip")
+            # nan value lar zaten gruplanmıyor
+            for chip in grouped_file_info_df.groups.keys():
+                size = grouped_file_info_df.get_group(chip)["Size (MAU)"].apply(lambda x: int(x, 16)).sum()
+                layers_df = pd.concat([layers_df, pd.DataFrame([[merged_df[merged_df["File"] == file_name]["Type"].values[0], chip, size]], columns=["Type", "Chip", "Size"])], ignore_index=True)
+        layers_df = layers_df.groupby(["Type", "Chip"]).sum()
+        layers_df = layers_df.reset_index()
+        show(layers_df)
 
     def get_mem_section_check(self):
         excel_df = pd.read_excel("mode5_config.xlsx") # has Type	File Name	Expected Memory (Chip) columns expected memory can be multiple like mpe:dsram1, mpe:dsram2
@@ -128,12 +160,15 @@ class Modes():
             not_equal_link_res_sec = pd.merge(not_equals_table, locate_result_sections_df_renamed, on='[out] Section', how='left')
             search_on_combined_for_not_equal = not_equal_link_res_sec[not_equal_link_res_sec["Chip"].isna()]
             if not search_on_combined_for_not_equal.empty:
-                search_on_combined_for_not_equal = search_on_combined_for_not_equal[["[in] Section","in_out_is_equal"]]
+                search_on_combined_for_not_equal = search_on_combined_for_not_equal.drop(columns=["[in] Section"])
+                search_on_combined_for_not_equal = search_on_combined_for_not_equal.rename(columns={"[out] Section" : "[in] Section"})
+                search_on_combined_for_not_equal = search_on_combined_for_not_equal[["[in] Section", "in_out_is_equal"]]
                 not_equal_link_res_and_combined_sec = pd.merge(search_on_combined_for_not_equal, locate_result_combined_sections_df, on='[in] Section', how='left')
-                not_equal_link_res_and_combined_sec['Chip'] = not_equal_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Chip'].values[0] if x in locate_result_sections_df['Section'].values else '')
-                not_equal_link_res_and_combined_sec['Group addr'] = not_equal_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Space addr'].values[0] if x in locate_result_sections_df['Section'].values else '')
-                not_equal_link_res_and_combined_sec['Space addr'] = not_equal_link_res_and_combined_sec.apply(lambda row: '0x' + hex(int(row['Group addr'], 16) + int(row['[out] Offset'], 16))[2:].zfill(8), axis=1)
-                not_equal_merged = pd.concat([not_equal_link_res_sec, not_equal_link_res_and_combined_sec], axis=0)
+                not_equal_link_res_and_combined_sec['Chip'] = not_equal_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Chip'].values[0] if x in locate_result_sections_df['Section'].values else np.NaN)
+                not_equal_link_res_and_combined_sec['Group addr'] = not_equal_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Space addr'].values[0] if x in locate_result_sections_df['Section'].values else np.NaN)
+                not_equal_link_res_and_combined_sec['Space addr'] = not_equal_link_res_and_combined_sec.apply(lambda row: '0x' + hex(int(row['Group addr'], 16) + int(row['[out] Offset'], 16))[2:].zfill(8) if not pd.isna(row['Group addr']) else np.NaN, axis=1)
+                not_equal_merged = not_equal_link_res_and_combined_sec[["Chip", "Space addr", "[in] Size (MAU)", "in_out_is_equal", "[in] Section", "[out] Section"]]
+                not_equal_merged = not_equal_link_res_and_combined_sec.rename(columns={"[in] Size (MAU)" : "Size (MAU)"})
             else:
                 not_equal_merged = not_equal_link_res_sec
             print_message("warning", "Could be 2 or more symbol in the same space adrress:\n" + str(not_equal_merged["Space addr"].unique().tolist()))
@@ -155,10 +190,10 @@ class Modes():
             search_on_combined = search_on_combined[["[in] Section","in_out_is_equal"]]
 
             merged_link_res_and_combined_sec = pd.merge(search_on_combined, locate_result_combined_sections_df, on='[in] Section', how='left')
-            merged_link_res_and_combined_sec['Chip'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Chip'].values[0] if x in locate_result_sections_df['Section'].values else '')
-            merged_link_res_and_combined_sec['Group addr'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Space addr'].values[0] if x in locate_result_sections_df['Section'].values else '')
-            merged_link_res_and_combined_sec['Space addr'] = merged_link_res_and_combined_sec.apply(lambda row: '0x' + hex(int(row['Group addr'], 16) + int(row['[out] Offset'], 16))[2:].zfill(8), axis=1)
-            
+            merged_link_res_and_combined_sec['Chip'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Chip'].values[0] if x in locate_result_sections_df['Section'].values else np.NaN)
+            merged_link_res_and_combined_sec['Group addr'] = merged_link_res_and_combined_sec['[out] Section'].apply(lambda x: locate_result_sections_df.loc[locate_result_sections_df['Section'] == x, 'Space addr'].values[0] if x in locate_result_sections_df['Section'].values else np.NaN)
+            merged_link_res_and_combined_sec['Space addr'] = merged_link_res_and_combined_sec.apply(lambda row: '0x' + hex(int(row['Group addr'], 16) + int(row['[out] Offset'], 16))[2:].zfill(8) if not pd.isna(row['Group addr']) else np.NaN, axis=1)
+
             merged_link_res_and_combined_sec = pd.merge(merged_link_res_and_combined_sec, symbols_df, on='Space addr', how='left')
             merged_link_res_and_combined_sec["Name"] = merged_link_res_and_combined_sec["Name"].fillna("Not Found from Combined Sections Table")
             merged_link_res_and_combined_sec = merged_link_res_and_combined_sec.rename(columns={"[in] Size (MAU)" : "Size (MAU)"})
@@ -179,6 +214,7 @@ class Modes():
         # reorder
         cols = ['Chip', 'Space addr', 'Size (MAU)', 'Symbol Name', 'in_out_is_equal', '[in] Section', '[out] Section']
         all_merged = all_merged[cols]
+        all_merged = all_merged.reset_index(drop=True)
         MapFileTable().save_df_as(all_merged, name='file_info_'+ file_name, format='html')
 
         # show(all_merged)
@@ -341,8 +377,9 @@ class Modes():
 if __name__ == "__main__":
     obj = Modes()
     # obj.get_overall()
-    # obj.get_file_info()
+    # obj.get_file_info("Rte.c")
     
     # obj.get_overall()
 
-    obj.get_mem_section_check()
+    # obj.get_mem_section_check()
+    obj.get_layers_mem_usage()

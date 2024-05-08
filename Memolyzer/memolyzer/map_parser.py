@@ -194,13 +194,13 @@ class MapParser:
         file_paths = [i.strip() for i in file_paths]
  
         # type_and_search_key = { 'Bsw': "thirdPartyObj", 'Integration': "IntegrationLayer", 'Apsw': "Apsw" }
-        file_type_df = pd.DataFrame(columns=['type', 'file_name'])
+        file_type_df = pd.DataFrame(columns=['Type', 'File'])
         
         for file_path in file_paths:
             for keyword in type_and_search_key.keys():
                 if type_and_search_key[keyword] in file_path:
                     file_name = file_path.split('/')[-1].strip('"')
-                    file_type_df = pd.concat([file_type_df, pd.DataFrame({'type': [keyword], 'file_name': [file_name]})], ignore_index=True)
+                    file_type_df = pd.concat([file_type_df, pd.DataFrame({'Type': [keyword], 'File': [file_name]})], ignore_index=True)
                     break
 
         MapFileTable().save_df_as(file_type_df,"tool_and_invocation1","html")
